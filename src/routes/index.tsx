@@ -54,7 +54,7 @@ function Index() {
   const semesterEnd = useMemo(() => new Date(year, 11, 12), [year]);
   const november = useMemo(() => new Date(year, 10, 1), [year]);
 
-  const [sectionId, setSectionId] = useState(SECTIONS[0].id);
+  const [sectionId, setSectionId] = useState(SECTIONS[0]!.id);
   const section = SECTIONS.find((s) => s.id === sectionId)!;
 
   const defaultPlan = useMemo(() => {
@@ -230,7 +230,7 @@ function Index() {
                   </p>
                   <p className="mt-1 text-sm text-mist/80">
                     Even attending every remaining class,{" "}
-                    {doomed.length === 1 ? doomed[0].subject.name : "these subjects"} cap
+                    {doomed.length === 1 ? doomed[0]!.subject.name : "these subjects"} cap
                     {doomed.length === 1 ? "s" : ""} at{" "}
                     <span className="font-semibold text-mist">
                       {Math.round(Math.max(...doomed.map((d) => d.maxPossible)) * 100)}%
