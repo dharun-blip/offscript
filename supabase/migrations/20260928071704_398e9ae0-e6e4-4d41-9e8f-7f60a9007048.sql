@@ -1,0 +1,10 @@
+CREATE TABLE public.advisor_conversations (user_id uuid PRIMARY KEY, messages jsonb NOT NULL DEFAULT '[]'::jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.advisor_conversations TO authenticated;
+GRANT ALL ON public.advisor_conversations TO service_role;
+ALTER TABLE public.advisor_conversations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Account owner reads advisor" ON public.advisor_conversations FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Account owner creates advisor" ON public.advisor_conversations FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Account owner updates advisor" ON public.advisor_conversations FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Account owner deletes advisor" ON public.advisor_conversations FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE OR REPLACE FUNCTION public.touch_advisor_conversation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+CREATE TRIGGER touch_advisor_conversation BEFORE UPDATE ON public.advisor_conversations FOR EACH ROW EXECUTE FUNCTION public.touch_advisor_conversation();
