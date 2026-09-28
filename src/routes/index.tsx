@@ -1,11 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
+import { AttendanceAdvisor } from "@/components/AttendanceAdvisor";
+import { Button } from "@/components/ui/button";
 import {
   DANGER_FLOOR,
   SECTIONS,
   TARGET,
   analyze,
   formatDate,
+  excusedClasses,
+  simulateLeave,
+  type LeavePlan,
   toISODate,
   type SubjectResult,
 } from "@/lib/attendance";
@@ -20,6 +26,8 @@ export const Route = createFileRoute("/")({
           "Enter your class section and attendance percentages to see how many remaining classes you must attend to clear 75% or reach 90% before the semester ends.",
       },
       { property: "og:title", content: "The Core Calculator · Attendance Ledger" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content:
@@ -66,6 +74,8 @@ function Index() {
   const planDate = useMemo(() => startOfDay(new Date(`${planISO}T00:00:00`)), [planISO]);
 
   const [pcts, setPcts] = useState<Record<string, number>>({});
+  const [leaves, setLeaves] = useState<Record<string, LeavePlan>>({});
+  const updateLeave = (id: string, update: Partial<LeavePlan>) => setLeaves(prev => ({ ...prev, [id]: { kind: "medical", start: toISODate(today), days: 0, ...prev[id], ...update } }));
   const getPct = (id: string) => pcts[id] ?? 80;
 
   const results: SubjectResult[] = section.subjects.map((s) =>
@@ -76,15 +86,15 @@ function Index() {
     .map((s) => analyze(s, getPct(s.id), today, november, semesterEnd))
     .filter((r) => r.irreversible && r.remaining >= 0 && november > today);
 
+  const chartData = results.map(r => ({ name: r.subject.name, current: r.pct, projected: Math.round(simulateLeave(r, excusedClasses(today, planDate, r.subject.classesPerWeek, leaves[r.subject.id] ?? null)).projectedPct * 10) / 10 }));
+  const overall = results.length ? Math.round(results.reduce((a, r) => a + r.pct, 0) / results.length) : 0;
   const totalRemaining = results.reduce((a, r) => a + r.remaining, 0);
   const totalFloor = results.reduce((a, r) => a + (r.neededForFloor ?? r.remaining), 0);
   const totalTarget = results.reduce((a, r) => a + (r.neededForTarget ?? r.remaining), 0);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-ink font-body text-mist">
-      <div className="pointer-events-none absolute -top-40 -left-32 size-[520px] rounded-full bg-brand/25 blur-[120px]" />
-      <div className="pointer-events-none absolute top-1/3 -right-40 size-[460px] rounded-full bg-safe/20 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 size-[420px] rounded-full bg-danger/15 blur-[120px]" />
+
 
       <div className="relative mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-10">
         <header className="flex flex-wrap items-center justify-between gap-4">
@@ -124,11 +134,12 @@ function Index() {
               {SECTIONS.map((s) => {
                 const active = s.id === sectionId;
                 return (
-                  <button
+                  <Button
+                    variant="ghost"
                     key={s.id}
                     type="button"
                     onClick={() => setSectionId(s.id)}
-                    className={`flex items-center justify-between rounded-xl px-4 py-3 text-left transition-colors ${
+                    className={`h-auto w-full justify-between whitespace-normal rounded-lg px-4 py-3 text-left transition-colors ${
                       active ? "bg-brand/25 ring-1 ring-brand/40" : "hover:bg-mist/5"
                     }`}
                   >
@@ -143,7 +154,7 @@ function Index() {
                         active ? "bg-brand-soft/40 ring-2 ring-brand-soft" : "ring-2 ring-border"
                       }`}
                     />
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -168,6 +179,26 @@ function Index() {
                 <div className="mt-1.5 rounded-xl bg-ink/40 px-3 py-2.5 text-sm text-mist ring-1 ring-border">
                   {DANGER_FLOOR * 100}%
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="font-display text-sm font-medium uppercase tracking-[0.14em] text-mist-soft">OD / Medical leave</h2>
+              <p className="mt-1 text-xs text-mist-soft">Excused classes are excluded from the attendance total. Confirm your institution's policy.</p>
+              <div className="mt-3 space-y-3">
+                {section.subjects.map(s => {
+                  const leave = leaves[s.id] ?? { kind: "medical" as const, start: toISODate(today), days: 0 };
+                  const result = results.find(r => r.subject.id === s.id);
+                  const simulation = result ? simulateLeave(result, excusedClasses(today, planDate, s.classesPerWeek, leave)) : null;
+                  return <div key={s.id} className="border-b border-border pb-3 last:border-0">
+                    <div className="flex items-center justify-between gap-2"><span className="text-sm text-mist">{s.name}</span><span className={`font-display text-sm font-semibold ${simulation ? pctTone(simulation.projectedPct) : ''}`}>{simulation?.projectedPct.toFixed(1)}% projected</span></div>
+                    <div className="mt-2 grid grid-cols-[1fr_1fr_68px] gap-2">
+                      <select aria-label={`${s.name} leave type`} value={leave.kind} onChange={e => updateLeave(s.id, { kind: e.target.value as LeavePlan['kind'] })} className="min-w-0 rounded-md border border-border bg-ink px-2 py-2 text-xs text-mist"><option value="medical">Medical</option><option value="od">On-duty</option></select>
+                      <input aria-label={`${s.name} leave start`} type="date" min={toISODate(today)} max={toISODate(semesterEnd)} value={leave.start} onChange={e => updateLeave(s.id, { start: e.target.value })} className="min-w-0 rounded-md border border-border bg-ink px-1 py-2 text-xs text-mist" />
+                      <input aria-label={`${s.name} leave days`} type="number" min={0} max={90} value={leave.days} onChange={e => updateLeave(s.id, { days: Math.max(0, Math.min(90, Number(e.target.value) || 0)) })} className="min-w-0 rounded-md border border-border bg-ink px-2 py-2 text-xs text-mist" />
+                    </div><p className="mt-1 text-xs text-mist-soft">{simulation?.excused ?? 0} excused classes · {simulation?.neededForFloor ?? 'Not possible'} to clear 75%</p>
+                  </div>;
+                })}
               </div>
             </div>
 
@@ -269,6 +300,11 @@ function Index() {
               </div>
             </div>
 
+            <section aria-label="Attendance health" className="border-y border-border py-5">
+              <div className="mb-4 flex items-baseline justify-between"><div><h2 className="font-display text-base font-semibold">Attendance health</h2><p className="text-xs text-mist-soft">Current vs. projected with leave</p></div><span className={`font-display text-2xl font-semibold ${pctTone(overall)}`}>{overall}% overall</span></div>
+              <div className="h-56 w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData} margin={{ left: -20, right: 4, top: 10, bottom: 2 }}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="name" tick={{ fill: 'var(--mist-soft)', fontSize: 11 }} interval={0} /><YAxis domain={[0,100]} tick={{ fill: 'var(--mist-soft)', fontSize: 11 }} /><Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--mist)' }} /><ReferenceLine y={75} stroke="var(--danger-soft)" strokeDasharray="4 4" /><Bar dataKey="current" name="Current" fill="var(--brand-soft)" radius={[3,3,0,0]} maxBarSize={24} /><Bar dataKey="projected" name="Projected" radius={[3,3,0,0]} maxBarSize={24}>{chartData.map((entry, index) => <Cell key={index} fill={entry.projected < 75 ? 'var(--danger-soft)' : 'var(--safe-soft)'} />)}</Bar></BarChart></ResponsiveContainer></div>
+              <div className="mt-2 flex gap-5 text-xs text-mist-soft"><span><i className="mr-1 inline-block size-2 bg-brand-soft" />Current</span><span><i className="mr-1 inline-block size-2 bg-safe-soft" />Projected</span><span>Dashed line: 75% floor</span></div>
+            </section>
             <div className="flex flex-col gap-3">
               {results.map((r) => {
                 const locked = r.irreversible;
@@ -331,6 +367,7 @@ function Index() {
           </section>
         </div>
       </div>
+      <AttendanceAdvisor sectionId={sectionId} percentages={Object.fromEntries(section.subjects.map(s => [s.id, getPct(s.id)]))} planISO={planISO} leaves={leaves} />
     </div>
   );
 }
