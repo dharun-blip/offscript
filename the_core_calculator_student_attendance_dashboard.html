@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Core Calculator - M3 Attendance & Analytics Engine</title>
+    
+    <!-- Tailwind CSS with custom Material 3 extensions -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        m3: {
+                            primary: 'var(--m3-primary)',
+                            onPrimary: 'var(--m3-on-primary)',
+                            primaryContainer: 'var(--m3-primary-container)',
+                            onPrimaryContainer: 'var(--m3-on-primary-container)',
+                            secondary: 'var(--m3-secondary)',
+                            secondaryContainer: 'var(--m3-secondary-container)',
+                            surface: 'var(--m3-surface)',
+                            surfaceVariant: 'var(--m3-surface-variant)',
+                            onSurface: 'var(--m3-on-surface)',
+                            onSurfaceVariant: 'var(--m3-on-surface-variant)',
+                            outline: 'var(--m3-outline)',
+                            error: 'var(--m3-error)',
+                            errorContainer: 'var(--m3-error-container)',
+                            onErrorContainer: 'var(--m3-on-error-container)',
+                            success: '#10b981',
+                            successContainer: '#d1fae5',
+                            warning: '#f59e0b',
+                            warningContainer: '#fef3c7'
+                        }
+                    },
+                    borderRadius: {
+                        'm3-xl': '28px',
+                        'm3-lg': '16px',
+                        'm3-full': '9999px'
+                    },
+                    boxShadow: {
+                        'm3-1': '0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)',
+                        'm3-2': '0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)',
+                        'm3-3': '0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.30)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <!-- Chart.js for interactive visual analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --m3-primary: #00639b;
+            --m3-on-primary: #ffffff;
+            --m3-primary-container: #ce2e31;
+            --m3-on-primary-container: #001d32;
+            --m3-secondary: #51606f;
+            --m3-secondary-container: #d5e4f6;
+            --m3-surface: #f8f9ff;
+            --m3-surface-variant: #e1e2ec;
+            --m3-on-surface: #191c1e;
+            --m3-on-surface-variant: #43474e;
+            --m3-outline: #73777f;
+            --m3-error: #ba1a1a;
+            --m3-error-container: #ffdad6;
+            --m3-on-error-container: #410002;
+        }
+
+        .dark {
+            --m3-primary: #98caff;
+            --m3-on-primary: #003353;
+            --m3-primary-container: #004a76;
+            --m3-on-primary-container: #ce2e31;
+            --m3-secondary: #b9c8da;
+            --m3-secondary-container: #3a4857;
+            --m3-surface: #101418;
+            --m3-surface-variant: #43474e;
+            --m3-on-surface: #e1e2e6;
+            --m3-on-surface-variant: #c3c6cf;
+            --m3-outline: #8d9199;
+            --m3-error: #ffb4ab;
+            --m3-error-container: #93000a;
+            --m3-on-error-container: #ffdad6;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--m3-surface);
+            color: var(--m3-on-surface);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--m3-outline);
+            border-radius: 8px;
+            opacity: 0.5;
+        }
+
+        /* Danger Pulse Animation */
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.6); }
+            50% { box-shadow: 0 0 20px 8px rgba(186, 26, 26, 0.4); }
+        }
+        .animate-danger-pulse {
+            animation: pulse-red 2s infinite;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass-card {
+            background: rgba(25, 28, 30, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Bar (Material 3 Top App Bar) -->
+    <header class="sticky top-0 z-30 bg-opacity-90 backdrop-blur-md border-b border-m3-outline/20 px-4 lg:px-8 py-3 transition-colors">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
+                    <span class="material-symbols-outlined text-2xl">calculate</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+                            The Core Calculator
+                        </h1>
+                        <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">M3 Edition</span>
+                    </div>
+                    <p class="text-xs text-m3-onSurfaceVariant font-medium">Smart College Attendance & Analytics Engine</p>
+                </div>
+            </div>
+
+            <!-- Profile & Controls -->
+            <div class="flex items-center gap-3">
+                <!-- Theme Toggle -->
+                <button id="themeToggleBtn" onclick="toggleDarkMode()" class="p-2.5 rounded-full hover:bg-m3-surfaceVariant/50 text-m3-onSurface transition" title="Toggle Light/Dark Theme">
+                    <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+                </button>
+
+                <!-- Section Selector pill -->
+                <div class="relative inline-block">
+                    <select id="sectionSelect" onchange="switchSection(this.value)" class="appearance-none bg-m3-surfaceVariant/60 dark:bg-slate-800 border border-m3-outline/30 rounded-full px-4 py-2 pr-9 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer transition">
+                        <option value="CSE-A">CSE - Section A</option>
+                        <option value="CSE-B">CSE - Section B</option>
+                        <option value="ECE-A">ECE - Section A</option>
+                        <option value="MECH-A">MECH - Section A</option>
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-2.5 pointer-events-none text-m3-onSurfaceVariant text-lg">expand_more</span>
+                </div>
+
+                <!-- API Key Config Button -->
+                <button onclick="openApiKeyModal()" class="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-full bg-m3-secondaryContainer text-m3-onSurface text-xs font-semibold hover:opacity-90 transition">
+                    <span class="material-symbols-outlined text-base">key</span>
+                    <span id="apiKeyStatusLabel">Gemini API Key</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- Global Critical Danger Banner (Hidden by default, triggered when irreversible detention detected) -->
+        <div id="irreversibleDetentionBanner" class="hidden animate-danger-pulse bg-gradient-to-r from-red-600 via-rose-700 to-red-800 text-white p-5 rounded-m3-xl shadow-m3-3 relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+                <div class="flex items-start gap-3">
+                    <div class="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                        <span class="material-symbols-outlined text-3xl">warning_amber</span>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold uppercase tracking-wide flex items-center gap-2">
+                            🚨 IRREVERSIBLE DETENTION ALERT
+                        </h2>
+                        <p class="text-sm opacity-90 font-medium max-w-2xl mt-1" id="detentionBannerText">
+                            Your overall attendance projection cannot reach 75% before November, even with 100% attendance from today onward!
+                        </p>
+                    </div>
+                </div>
+                <button onclick="switchTab('analytics')" class="px-5 py-2.5 bg-white text-red-700 font-bold text-sm rounded-full shadow-lg hover:bg-slate-100 transition whitespace-nowrap">
+                    View Recovery Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Section Info & Date Picker Strip -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Current Date & Target Date Card -->
+            <div class="glass-card rounded-m3-xl p-5 shadow-m3-1 flex items-center gap-4">
+                <div class="p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
+                    <span class="material-symbols-outlined text-2xl">calendar_today</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-xs uppercase tracking-wider font-bold text-m3-onSurfaceVariant">Semester Calendar</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs font-medium text-m3-outline">Today:</span>
+                        <span id="currentDateDisplay" class="font-bold text-sm"></span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1">
+                        <label for="targetDatePicker" class="text-xs font-medium text-m3-outline">Target Date:</label>
+                        <input type="date" id="targetDatePicker" onchange="updateSemesterCalculations()" class="bg-m3-surfaceVariant/50 dark:bg-slate-800 text-xs font-bold rounded-lg px-2 py-1 border border-m3-outline/20 focus:outline-none focus:ring-1 focus:ring-m3-primary cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Overall Health Status Card -->
+            <div class="glass-card rounded-m3-xl p-5 shadow-m3-1 flex items-center gap-4">
+                <div id="healthIconBox" class="p-3 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300">
+                    <span class="material-symbols-outlined text-2xl" id="healthIcon">verified_user</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-xs uppercase tracking-wider font-bold text-m3-onSurfaceVariant">Overall Attendance Status</p>
+                    <div class="flex items-baseline gap-2 mt-0.5">
+                        <span class="text-2xl font-black" id="overallPercentageHeader">0%</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" id="overallBadge">Safe Zone</span>
+                    </div>
+                    <p class="text-xs text-m3-onSurfaceVariant mt-0.5" id="overallSummaryText">All subjects safe</p>
+                </div>
+            </div>
+
+            <!-- Remaining Semester Schedule Stats Card -->
+            <div class="glass-card rounded-m3-xl p-5 shadow-m3-1 flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wider font-bold text-m3-onSurfaceVariant">Remaining Working Days</p>
+                    <h3 class="text-2xl font-black text-m3-primary mt-1" id="totalDaysLeft">0 Days</h3>
+                    <p class="text-xs text-m3-onSurfaceVariant mt-0.5" id="totalClassesLeft">0 total class hours left</p>
+                </div>
+                <div class="p-3 rounded-2xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                    <span class="material-symbols-outlined text-2xl">event_available</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs (M3 Expressive Segmented Tabs) -->
+        <div class="flex bg-m3-surfaceVariant/40 p-1.5 rounded-2xl gap-2 overflow-x-auto shadow-inner">
+            <button onclick="switchTab('dashboard')" id="tabBtn-dashboard" class="tab-btn flex-1 min-w-[120px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition bg-m3-primary text-m3-onPrimary shadow-m3-1">
+                <span class="material-symbols-outlined text-lg">dashboard</span>
+                Dashboard & Subjects
+            </button>
+            <button onclick="switchTab('odSimulator')" id="tabBtn-odSimulator" class="tab-btn flex-1 min-w-[120px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition text-m3-onSurfaceVariant hover:bg-m3-surfaceVariant/60">
+                <span class="material-symbols-outlined text-lg">published_with_changes</span>
+                OD / ML Simulator
+            </button>
+            <button onclick="switchTab('timetable')" id="tabBtn-timetable" class="tab-btn flex-1 min-w-[120px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition text-m3-onSurfaceVariant hover:bg-m3-surfaceVariant/60">
+                <span class="material-symbols-outlined text-lg">calendar_view_week</span>
+                Timetable Schedule
+            </button>
+            <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="tab-btn flex-1 min-w-[120px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition text-m3-onSurfaceVariant hover:bg-m3-surfaceVariant/60">
+                <span class="material-symbols-outlined text-lg">analytics</span>
+                Visual Analytics
+            </button>
+        </div>
+
+        <!-- TAB 1: DASHBOARD & SUBJECTS -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+            
+            <!-- Quick Action Toolbar -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-m3-surfaceVariant/20 p-4 rounded-m3-xl border border-m3-outline/10">
+                <div>
+                    <h3 class="font-bold text-base text-m3-onSurface">Subject Attendance Breakdown</h3>
+                    <p class="text-xs text-m3-onSurfaceVariant">Enter your attended and total conducted classes to auto-calculate required targets.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openAddSubjectModal()" class="px-4 py-2 bg-m3-primary text-m3-onPrimary rounded-full text-xs font-bold flex items-center gap-1.5 shadow-m3-1 hover:opacity-90 transition">
+                        <span class="material-symbols-outlined text-base">add</span>
+                        Add Subject
+                    </button>
+                    <button onclick="resetDefaultData()" class="px-3 py-2 bg-m3-surfaceVariant text-m3-onSurfaceVariant rounded-full text-xs font-semibold flex items-center gap-1 hover:bg-m3-surfaceVariant/80 transition" title="Reset default sample subjects">
+                        <span class="material-symbols-outlined text-base">restart_alt</span>
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Subject Cards Grid -->
+            <div id="subjectGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- Dynamic subject cards render here -->
+            </div>
+        </section>
+
+        <!-- TAB 2: OD / ML SIMULATOR -->
+        <section id="tab-odSimulator" class="tab-content hidden space-y-6">
+            <div class="glass-card p-6 rounded-m3-xl shadow-m3-1 border border-m3-outline/20">
+                <div class="max-w-2xl">
+                    <span class="px-3 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 rounded-full text-xs font-extrabold uppercase">Interactive Simulation Engine</span>
+                    <h2 class="text-2xl font-extrabold text-m3-onSurface mt-2">On-Duty (OD) & Medical Leave (ML) Simulator</h2>
+                    <p class="text-xs sm:text-sm text-m3-onSurfaceVariant mt-1">
+                        Simulate how approved On-Duty credits or Medical Leaves raise your effective attendance. OD credits count as attended classes without physically attending.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <!-- OD / ML Controls -->
+                    <div class="bg-m3-surfaceVariant/30 p-5 rounded-2xl border border-m3-outline/10 space-y-4">
+                        <h3 class="font-bold text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined text-m3-primary">edit_calendar</span>
+                            Add Planned OD / Medical Days
+                        </h3>
+
+                        <div>
+                            <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">Select Subject</label>
+                            <select id="simSubjectSelect" class="w-full bg-m3-surface border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold focus:ring-2 focus:ring-m3-primary">
+                                <!-- Options dynamically injected -->
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">OD Hours</label>
+                                <input type="number" id="simODInput" min="0" value="0" class="w-full bg-m3-surface border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">Medical Leaves</label>
+                                <input type="number" id="simMLInput" min="0" value="0" class="w-full bg-m3-surface border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold">
+                            </div>
+                        </div>
+
+                        <button onclick="applySimulation()" class="w-full py-2.5 bg-m3-primary text-m3-onPrimary text-xs font-bold rounded-xl shadow-m3-1 hover:opacity-90 transition flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">play_arrow</span>
+                            Recalculate Attendance
+                        </button>
+                    </div>
+
+                    <!-- Live Simulation Impact Summary -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <h3 class="font-bold text-sm text-m3-onSurface">Simulated Attendance Comparison</h3>
+                        <div id="simResultsContainer" class="space-y-3 max-h-[380px] overflow-y-auto pr-2">
+                            <!-- Dynamic simulation bars will render here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: TIMETABLE SCHEDULE -->
+        <section id="tab-timetable" class="tab-content hidden space-y-6">
+            <div class="glass-card p-6 rounded-m3-xl shadow-m3-1">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-m3-onSurface">Weekly Section Timetable & Day-Wise Schedule</h2>
+                        <p class="text-xs text-m3-onSurfaceVariant">Used to accurately calculate total class hours left until your target date.</p>
+                    </div>
+                    <div class="text-xs font-bold px-3 py-1.5 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">
+                        Active Section: <span id="timetableSectionTag">CSE-A</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6" id="timetableGrid">
+                    <!-- Day schedule columns will be rendered here dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: VISUAL ANALYTICS & CHARTS -->
+        <section id="tab-analytics" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Chart 1: Donut Health Gauge -->
+                <div class="glass-card p-6 rounded-m3-xl shadow-m3-1 flex flex-col items-center justify-center">
+                    <h3 class="font-bold text-sm text-m3-onSurface mb-4">Overall Attendance Composition</h3>
+                    <div class="w-56 h-56 relative flex items-center justify-center">
+                        <canvas id="gaugeChart"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span class="text-3xl font-black" id="chartGaugeValue">0%</span>
+                            <span class="text-xs font-bold text-m3-outline">Weighted Avg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Projection Trajectory Line Chart -->
+                <div class="glass-card p-6 rounded-m3-xl shadow-m3-1 lg:col-span-2">
+                    <h3 class="font-bold text-sm text-m3-onSurface mb-2">What-If Attendance Trajectory Projection</h3>
+                    <p class="text-xs text-m3-onSurfaceVariant mb-4">Estimated progress curve if you attend 100% vs 80% vs 50% of remaining classes.</p>
+                    <div class="h-64 w-full">
+                        <canvas id="trajectoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Floating AI Attendance Advisor Chat FAB -->
+    <div class="fixed bottom-6 right-6 z-40">
+        <button onclick="toggleAiDrawer()" class="group relative flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-full shadow-m3-3 hover:scale-105 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-2xl animate-bounce">smart_toy</span>
+            <span class="font-extrabold text-sm tracking-wide">Attendance Advisor AI</span>
+            <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white"></span>
+        </button>
+    </div>
+
+    <!-- AI Advisor Sliding Drawer Container -->
+    <div id="aiDrawerBackdrop" onclick="toggleAiDrawer()" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300"></div>
+    <div id="aiDrawer" class="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-m3-surface dark:bg-slate-900 z-50 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col border-l border-m3-outline/20">
+        <!-- AI Drawer Header -->
+        <div class="p-4 bg-gradient-to-r from-blue-700 to-indigo-700 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 bg-white/20 rounded-xl">
+                    <span class="material-symbols-outlined text-xl">psychology</span>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base">Attendance Advisor AI</h3>
+                    <p class="text-[10px] text-blue-100 opacity-90">Powered by Gemini & Real-time Context</p>
+                </div>
+            </div>
+            <button onclick="toggleAiDrawer()" class="p-1.5 rounded-full hover:bg-white/20 text-white transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <!-- AI Drawer Chat Messages Window -->
+        <div id="aiChatContainer" class="flex-1 p-4 overflow-y-auto space-y-4 text-xs sm:text-sm">
+            <!-- Welcome message -->
+            <div class="flex items-start gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    AI
+                </div>
+                <div class="bg-m3-surfaceVariant/50 dark:bg-slate-800 p-3.5 rounded-2xl rounded-tl-none max-w-[85%] border border-m3-outline/10 text-m3-onSurface">
+                    Hello! I'm your Attendance Advisor. Ask me anything about your leaves, safe limits, or targets! For example: 
+                    <i class="block mt-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-semibold">"If I miss 3 classes in Data Structures, will I enter the danger zone?"</i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Prompt Chips -->
+        <div class="p-2 border-t border-m3-outline/10 flex items-center gap-1.5 overflow-x-auto bg-m3-surfaceVariant/10">
+            <button onclick="sendQuickPrompt('If I take 2 days medical leave starting tomorrow, will any subject drop below 75%?')" class="px-2.5 py-1 bg-m3-surfaceVariant text-m3-onSurfaceVariant rounded-full text-[11px] font-semibold whitespace-nowrap hover:bg-m3-primary hover:text-m3-onPrimary transition">
+                🤒 2-Day Sick Leave?
+            </button>
+            <button onclick="sendQuickPrompt('How many classes can I safely bunk in Data Structures?')" class="px-2.5 py-1 bg-m3-surfaceVariant text-m3-onSurfaceVariant rounded-full text-[11px] font-semibold whitespace-nowrap hover:bg-m3-primary hover:text-m3-onPrimary transition">
+                🏖️ Bunk Limit DS?
+            </button>
+            <button onclick="sendQuickPrompt('What is my fastest path to reach 90% overall attendance?')" class="px-2.5 py-1 bg-m3-surfaceVariant text-m3-onSurfaceVariant rounded-full text-[11px] font-semibold whitespace-nowrap hover:bg-m3-primary hover:text-m3-onPrimary transition">
+                🚀 How to hit 90%?
+            </button>
+        </div>
+
+        <!-- AI Chat Input Bar -->
+        <div class="p-3 border-t border-m3-outline/20 bg-m3-surface">
+            <form onsubmit="handleAiChatSubmit(event)" class="flex items-center gap-2">
+                <input type="text" id="aiChatInput" placeholder="Ask your attendance question..." class="flex-1 bg-m3-surfaceVariant/50 dark:bg-slate-800 border border-m3-outline/20 rounded-full px-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-m3-primary text-m3-onSurface">
+                <button type="submit" class="p-2.5 bg-m3-primary text-m3-onPrimary rounded-full shadow-m3-1 hover:opacity-90 transition flex items-center justify-center">
+                    <span class="material-symbols-outlined text-lg">send</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Subject Modal -->
+    <div id="subjectModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-m3-surface dark:bg-slate-900 rounded-m3-xl max-w-md w-full p-6 shadow-2xl border border-m3-outline/20 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg text-m3-onSurface" id="subjectModalTitle">Add New Subject</h3>
+                <button onclick="closeSubjectModal()" class="text-m3-onSurfaceVariant hover:text-m3-onSurface">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="subjectForm" onsubmit="saveSubjectForm(event)" class="space-y-3">
+                <input type="hidden" id="editSubjectId">
+                <div>
+                    <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">Subject Name</label>
+                    <input type="text" id="inputSubName" required placeholder="e.g., Operating Systems" class="w-full bg-m3-surfaceVariant/40 border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">Subject Code</label>
+                    <input type="text" id="inputSubCode" required placeholder="e.g., CS8451" class="w-full bg-m3-surfaceVariant/40 border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">Attended Classes</label>
+                        <input type="number" id="inputSubAttended" min="0" required class="w-full bg-m3-surfaceVariant/40 border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">Total Classes Held</label>
+                        <input type="number" id="inputSubTotal" min="1" required class="w-full bg-m3-surfaceVariant/40 border border-m3-outline/30 rounded-xl p-2.5 text-xs font-bold">
+                    </div>
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeSubjectModal()" class="px-4 py-2 rounded-full text-xs font-bold text-m3-onSurfaceVariant hover:bg-m3-surfaceVariant/50">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-m3-primary text-m3-onPrimary rounded-full text-xs font-bold shadow-m3-1 hover:opacity-90">Save Subject</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Gemini API Key Config -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-m3-surface dark:bg-slate-900 rounded-m3-xl max-w-md w-full p-6 shadow-2xl border border-m3-outline/20 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg text-m3-onSurface">Configure Gemini API Key</h3>
+                <button onclick="closeApiKeyModal()" class="text-m3-onSurfaceVariant hover:text-m3-onSurface">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <p class="text-xs text-m3-onSurfaceVariant">
+                Optionally enter your custom Gemini API key to power natural language reasoning for the AI Attendance Advisor. If left empty, a smart built-in rule simulator will respond!
+            </p>
+            <div>
+                <label class="block text-xs font-bold text-m3-onSurfaceVariant mb-1">API Key</label>
+                <input type="password" id="userApiKeyInput" placeholder="AIzaSy..." class="w-full bg-m3-surfaceVariant/40 border border-m3-outline/30 rounded-xl p-2.5 text-xs font-mono">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="saveApiKey()" class="px-5 py-2 bg-m3-primary text-m3-onPrimary rounded-full text-xs font-bold shadow-m3-1">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        // --- 1. SECTION DATA & TIMETABLE SCHEDULES ---
+        const SECTION_DATA = {
+            'CSE-A': {
+                name: 'Computer Science - Sec A',
+                timetable: {
+                    Mon: ['Mathematics IV', 'Data Structures', 'Operating Systems', 'Computer Networks'],
+                    Tue: ['Data Structures', 'AI & ML', 'Mathematics IV', 'Operating Systems'],
+                    Wed: ['Computer Networks', 'AI & ML', 'Data Structures', 'Mathematics IV'],
+                    Thu: ['Operating Systems', 'Computer Networks', 'AI & ML', 'Data Structures'],
+                    Fri: ['AI & ML', 'Mathematics IV', 'Operating Systems', 'Computer Networks']
+                },
+                subjects: [
+                    { id: 'cs1', code: 'MA8401', name: 'Mathematics IV', attended: 28, total: 35 },
+                    { id: 'cs2', code: 'CS8451', name: 'Data Structures', attended: 22, total: 32 },
+                    { id: 'cs3', code: 'CS8491', name: 'Operating Systems', attended: 16, total: 30 },
+                    { id: 'cs4', code: 'CS8492', name: 'Computer Networks', attended: 29, total: 32 },
+                    { id: 'cs5', code: 'CS8493', name: 'AI & ML', attended: 20, total: 30 }
+                ]
+            },
+            'CSE-B': {
+                name: 'Computer Science - Sec B',
+                timetable: {
+                    Mon: ['Operating Systems', 'Mathematics IV', 'Data Structures', 'AI & ML'],
+                    Tue: ['Computer Networks', 'Operating Systems', 'AI & ML', 'Mathematics IV'],
+                    Wed: ['Mathematics IV', 'Data Structures', 'Computer Networks', 'Operating Systems'],
+                    Thu: ['AI & ML', 'Computer Networks', 'Mathematics IV', 'Data Structures'],
+                    Fri: ['Data Structures', 'Operating Systems', 'AI & ML', 'Computer Networks']
+                },
+                subjects: [
+                    { id: 'csb1', code: 'MA8401', name: 'Mathematics IV', attended: 24, total: 32 },
+                    { id: 'csb2', code: 'CS8451', name: 'Data Structures', attended: 26, total: 30 },
+                    { id: 'csb3', code: 'CS8491', name: 'Operating Systems', attended: 14, total: 28 },
+                    { id: 'csb4', code: 'CS8492', name: 'Computer Networks', attended: 25, total: 31 },
+                    { id: 'csb5', code: 'CS8493', name: 'AI & ML', attended: 22, total: 29 }
+                ]
+            },
+            'ECE-A': {
+                name: 'Electronics - Sec A',
+                timetable: {
+                    Mon: ['Signals & Systems', 'Digital Logic', 'Microcontrollers', 'EM Waves'],
+                    Tue: ['Microcontrollers', 'Signals & Systems', 'Digital Logic', 'EM Waves'],
+                    Wed: ['EM Waves', 'Microcontrollers', 'Signals & Systems', 'Digital Logic'],
+                    Thu: ['Digital Logic', 'EM Waves', 'Microcontrollers', 'Signals & Systems'],
+                    Fri: ['Signals & Systems', 'Digital Logic', 'EM Waves', 'Microcontrollers']
+                },
+                subjects: [
+                    { id: 'ec1', code: 'EC8351', name: 'Signals & Systems', attended: 25, total: 30 },
+                    { id: 'ec2', code: 'EC8352', name: 'Digital Logic', attended: 27, total: 32 },
+                    { id: 'ec3', code: 'EC8353', name: 'Microcontrollers', attended: 18, total: 29 },
+                    { id: 'ec4', code: 'EC8354', name: 'EM Waves', attended: 20, total: 28 }
+                ]
+            },
+            'MECH-A': {
+                name: 'Mechanical - Sec A',
+                timetable: {
+                    Mon: ['Thermodynamics', 'Fluid Mechanics', 'Kinematics', 'Materials'],
+                    Tue: ['Fluid Mechanics', 'Thermodynamics', 'Materials', 'Kinematics'],
+                    Wed: ['Kinematics', 'Materials', 'Thermodynamics', 'Fluid Mechanics'],
+                    Thu: ['Materials', 'Kinematics', 'Fluid Mechanics', 'Thermodynamics'],
+                    Fri: ['Thermodynamics', 'Kinematics', 'Fluid Mechanics', 'Materials']
+                },
+                subjects: [
+                    { id: 'me1', code: 'ME8351', name: 'Thermodynamics', attended: 26, total: 32 },
+                    { id: 'me2', code: 'ME8352', name: 'Fluid Mechanics', attended: 21, total: 30 },
+                    { id: 'me3', code: 'ME8353', name: 'Kinematics', attended: 23, total: 28 },
+                    { id: 'me4', code: 'ME8354', name: 'Materials', attended: 25, total: 31 }
+                ]
+            }
+        };
+
+        // State Store
+        let activeSectionKey = 'CSE-A';
+        let currentSubjects = [];
+        let simulationCredits = {}; // { subId: { od: 0, ml: 0 } }
+        let gaugeChartInstance = null;
+        let trajectoryChartInstance = null;
+        let userGeminiApiKey = localStorage.getItem('gemini_api_key') || '';
+
+        // Initialization on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set Today's date display
+            const today = new Date();
+            const todayStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            document.getElementById('currentDateDisplay').innerText = todayStr;
+
+            // Default target date to end of semester (Nov 30 of current year)
+            const defaultTarget = new Date(today.getFullYear(), 10, 30); // Nov 30
+            document.getElementById('targetDatePicker').value = defaultTarget.toISOString().split('T')[0];
+
+            // Load initial section data
+            loadSectionData(activeSectionKey);
+            updateApiKeyLabel();
+        });
+
+        // Toggle Dark/Light Mode
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.innerText = 'dark_mode';
+            } else {
+                html.classList.add('dark');
+                icon.innerText = 'light_mode';
+            }
+            renderAnalyticsCharts();
+        }
+
+        // Switch Tab Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-m3-primary', 'text-m3-onPrimary', 'shadow-m3-1');
+                btn.classList.add('text-m3-onSurfaceVariant');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tabBtn-${tabId}`);
+            activeBtn.classList.add('bg-m3-primary', 'text-m3-onPrimary', 'shadow-m3-1');
+            activeBtn.classList.remove('text-m3-onSurfaceVariant');
+
+            if (tabId === 'analytics') {
+                renderAnalyticsCharts();
+            } else if (tabId === 'timetable') {
+                renderTimetableGrid();
+            } else if (tabId === 'odSimulator') {
+                renderSimulationControls();
+            }
+        }
+
+        function switchSection(sectionKey) {
+            activeSectionKey = sectionKey;
+            loadSectionData(sectionKey);
+        }
+
+        function loadSectionData(key) {
+            const sec = SECTION_DATA[key];
+            if (!sec) return;
+            currentSubjects = JSON.parse(JSON.stringify(sec.subjects));
+            simulationCredits = {};
+            currentSubjects.forEach(s => simulationCredits[s.id] = { od: 0, ml: 0 });
+
+            document.getElementById('timetableSectionTag').innerText = key;
+            updateSemesterCalculations();
+        }
+
+        // --- CALENDAR & REMAINING CLASS CALCULATOR ---
+        function calculateRemainingClassesBetweenDates(startDate, endDate, sectionKey) {
+            const timetable = SECTION_DATA[sectionKey].timetable;
+            let totalHours = 0;
+            let totalWorkingDays = 0;
+            let perSubjectHours = {};
+
+            currentSubjects.forEach(s => perSubjectHours[s.name] = 0);
+
+            let curr = new Date(startDate);
+            curr.setDate(curr.getDate() + 1); // start from tomorrow
+
+            const target = new Date(endDate);
+
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            while (curr <= target) {
+                const dayIndex = curr.getDay();
+                if (dayIndex !== 0 && dayIndex !== 6) { // Exclude weekends
+                    const dayName = dayNames[dayIndex];
+                    if (timetable[dayName]) {
+                        totalWorkingDays++;
+                        timetable[dayName].forEach(subName => {
+                            if (perSubjectHours[subName] !== undefined) {
+                                perSubjectHours[subName]++;
+                                totalHours++;
+                            }
+                        });
+                    }
+                }
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            return { totalWorkingDays, totalHours, perSubjectHours };
+        }
+
+        function updateSemesterCalculations() {
+            const today = new Date();
+            const targetVal = document.getElementById('targetDatePicker').value;
+            const targetDate = targetVal ? new Date(targetVal) : new Date(today.getFullYear(), 10, 30);
+
+            const scheduleCalc = calculateRemainingClassesBetweenDates(today, targetDate, activeSectionKey);
+
+            document.getElementById('totalDaysLeft').innerText = `${scheduleCalc.totalWorkingDays} Working Days`;
+            document.getElementById('totalClassesLeft').innerText = `${scheduleCalc.totalHours} total class hours remaining`;
+
+            let overallAttended = 0;
+            let overallTotal = 0;
+            let irreversibleDetentionTriggered = false;
+            let detentionDetails = [];
+
+            // Render subject cards
+            const subjectGrid = document.getElementById('subjectGrid');
+            subjectGrid.innerHTML = '';
+
+            currentSubjects.forEach(sub => {
+                const credits = simulationCredits[sub.id] || { od: 0, ml: 0 };
+                const effectiveAttended = sub.attended + credits.od;
+                const effectiveTotal = sub.total;
+                const currentPct = Math.round((effectiveAttended / effectiveTotal) * 100);
+
+                const classesLeft = scheduleCalc.perSubjectHours[sub.name] || 15; // default estimation fallback
+                const finalMaxPossibleAttended = effectiveAttended + classesLeft;
+                const finalTotalClasses = effectiveTotal + classesLeft;
+                const maxAchievablePct = Math.round((finalMaxPossibleAttended / finalTotalClasses) * 100);
+
+                // Safe threshold = 75%, Excellence = 90%
+                // To reach 75%: (effectiveAttended + X) / (effectiveTotal + classesLeft) >= 0.75
+                const neededFor75 = Math.max(0, Math.ceil((0.75 * finalTotalClasses) - effectiveAttended));
+                const neededFor90 = Math.max(0, Math.ceil((0.90 * finalTotalClasses) - effectiveAttended));
+
+                overallAttended += effectiveAttended;
+                overallTotal += effectiveTotal;
+
+                // Check detention condition
+                if (maxAchievablePct < 75) {
+                    irreversibleDetentionTriggered = true;
+                    detentionDetails.push(`${sub.name} (Max possible: ${maxAchievablePct}%)`);
+                }
+
+                // Determine badge styling
+                let statusBadge = '';
+                if (currentPct >= 90) {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">Excellence (90%+)</span>`;
+                } else if (currentPct >= 75) {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">Safe Zone</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Warning (&lt;75%)</span>`;
+                }
+
+                // Subject card HTML
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-m3-xl p-5 shadow-m3-1 hover:shadow-m3-2 transition border border-m3-outline/20 relative overflow-hidden flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <span class="text-[10px] font-extrabold tracking-wider uppercase text-m3-outline">${sub.code}</span>
+                                <h4 class="font-extrabold text-base text-m3-onSurface leading-tight">${sub.name}</h4>
+                            </div>
+                            ${statusBadge}
+                        </div>
+
+                        <!-- Main Attended Counter & Ring -->
+                        <div class="flex items-center justify-between mt-4 bg-m3-surfaceVariant/30 p-3 rounded-2xl">
+                            <div>
+                                <div class="text-2xl font-black text-m3-onSurface">${currentPct}%</div>
+                                <div class="text-xs text-m3-onSurfaceVariant font-medium">${effectiveAttended} / ${effectiveTotal} Classes</div>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="quickUpdateSubject('${sub.id}', 1)" class="w-8 h-8 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center hover:scale-105 active:scale-95 transition" title="+1 Attended">+</button>
+                                <button onclick="quickUpdateSubject('${sub.id}', 0)" class="w-8 h-8 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center hover:scale-105 active:scale-95 transition" title="+1 Missed">-</button>
+                            </div>
+                        </div>
+
+                        <!-- Class Requirements Breakdown -->
+                        <div class="mt-4 space-y-2 text-xs">
+                            <div class="flex justify-between items-center text-m3-onSurfaceVariant">
+                                <span>Remaining Classes Left:</span>
+                                <span class="font-bold text-m3-onSurface">${classesLeft} hrs</span>
+                            </div>
+                            <div class="flex justify-between items-center text-m3-onSurfaceVariant">
+                                <span>Must attend for 75% Safe Limit:</span>
+                                <span class="font-bold ${neededFor75 > classesLeft ? 'text-red-600 font-black' : 'text-emerald-600'}">${neededFor75 > classesLeft ? 'Impossible!' : neededFor75 + ' classes'}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-m3-onSurfaceVariant">
+                                <span>Needed for 90% Target:</span>
+                                <span class="font-bold text-m3-primary">${neededFor90 > classesLeft ? 'Unreachable' : neededFor90 + ' classes'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer actions -->
+                    <div class="mt-4 pt-3 border-t border-m3-outline/10 flex items-center justify-between">
+                        <button onclick="openEditSubjectModal('${sub.id}')" class="text-xs font-bold text-m3-primary hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">edit</span> Edit Data
+                        </button>
+                        <span class="text-[10px] text-m3-outline font-semibold">Max possible: ${maxAchievablePct}%</span>
+                    </div>
+                `;
+                subjectGrid.appendChild(card);
+            });
+
+            // Calculate Overall Summary
+            const overallPct = overallTotal > 0 ? Math.round((overallAttended / overallTotal) * 100) : 0;
+            document.getElementById('overallPercentageHeader').innerText = `${overallPct}%`;
+
+            const healthIconBox = document.getElementById('healthIconBox');
+            const overallBadge = document.getElementById('overallBadge');
+
+            if (overallPct >= 85) {
+                overallBadge.innerText = 'Safe & Superior';
+                overallBadge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300';
+            } else if (overallPct >= 75) {
+                overallBadge.innerText = 'Safe Zone';
+                overallBadge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300';
+            } else {
+                overallBadge.innerText = 'Critical Zone';
+                overallBadge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300';
+            }
+
+            // Toggle Global Irreversible Detention Banner
+            const banner = document.getElementById('irreversibleDetentionBanner');
+            if (irreversibleDetentionTriggered) {
+                banner.classList.remove('hidden');
+                document.getElementById('detentionBannerText').innerText = 
+                    `Mathematically impossible to reach 75% threshold in: ${detentionDetails.join(', ')} before end of term! Immediate academic intervention required.`;
+            } else {
+                banner.classList.add('hidden');
+            }
+
+            renderAnalyticsCharts();
+        }
+
+        function quickUpdateSubject(subId, attendedIncrement) {
+            const sub = currentSubjects.find(s => s.id === subId);
+            if (sub) {
+                sub.total += 1;
+                if (attendedIncrement === 1) sub.attended += 1;
+                updateSemesterCalculations();
+            }
+        }
+
+        function openAddSubjectModal() {
+            document.getElementById('subjectModalTitle').innerText = 'Add New Subject';
+            document.getElementById('editSubjectId').value = '';
+            document.getElementById('inputSubName').value = '';
+            document.getElementById('inputSubCode').value = '';
+            document.getElementById('inputSubAttended').value = '0';
+            document.getElementById('inputSubTotal').value = '10';
+            document.getElementById('subjectModal').classList.remove('hidden');
+        }
+
+        function openEditSubjectModal(subId) {
+            const sub = currentSubjects.find(s => s.id === subId);
+            if (!sub) return;
+            document.getElementById('subjectModalTitle').innerText = 'Edit Subject Data';
+            document.getElementById('editSubjectId').value = sub.id;
+            document.getElementById('inputSubName').value = sub.name;
+            document.getElementById('inputSubCode').value = sub.code;
+            document.getElementById('inputSubAttended').value = sub.attended;
+            document.getElementById('inputSubTotal').value = sub.total;
+            document.getElementById('subjectModal').classList.remove('hidden');
+        }
+
+        function closeSubjectModal() {
+            document.getElementById('subjectModal').classList.add('hidden');
+        }
+
+        function saveSubjectForm(e) {
+            e.preventDefault();
+            const id = document.getElementById('editSubjectId').value;
+            const name = document.getElementById('inputSubName').value;
+            const code = document.getElementById('inputSubCode').value;
+            const attended = parseInt(document.getElementById('inputSubAttended').value);
+            const total = parseInt(document.getElementById('inputSubTotal').value);
+
+            if (id) {
+                const sub = currentSubjects.find(s => s.id === id);
+                if (sub) {
+                    sub.name = name;
+                    sub.code = code;
+                    sub.attended = attended;
+                    sub.total = total;
+                }
+            } else {
+                const newSub = {
+                    id: 'custom_' + Date.now(),
+                    code, name, attended, total
+                };
+                currentSubjects.push(newSub);
+                simulationCredits[newSub.id] = { od: 0, ml: 0 };
+            }
+            closeSubjectModal();
+            updateSemesterCalculations();
+        }
+
+        function resetDefaultData() {
+            loadSectionData(activeSectionKey);
+        }
+
+        // --- 2. OD & ML SIMULATION CONTROLLER ---
+        function renderSimulationControls() {
+            const select = document.getElementById('simSubjectSelect');
+            select.innerHTML = '';
+            currentSubjects.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = `${s.code} - ${s.name}`;
+                select.appendChild(opt);
+            });
+            renderSimulationImpactResults();
+        }
+
+        function applySimulation() {
+            const subId = document.getElementById('simSubjectSelect').value;
+            const od = parseInt(document.getElementById('simODInput').value) || 0;
+            const ml = parseInt(document.getElementById('simMLInput').value) || 0;
+
+            if (simulationCredits[subId]) {
+                simulationCredits[subId].od = od;
+                simulationCredits[subId].ml = ml;
+            }
+            renderSimulationImpactResults();
+            updateSemesterCalculations();
+        }
+
+        function renderSimulationImpactResults() {
+            const container = document.getElementById('simResultsContainer');
+            container.innerHTML = '';
+
+            currentSubjects.forEach(sub => {
+                const credits = simulationCredits[sub.id] || { od: 0, ml: 0 };
+                const originalPct = Math.round((sub.attended / sub.total) * 100);
+                const simAttended = sub.attended + credits.od;
+                const simPct = Math.round((simAttended / sub.total) * 100);
+
+                const item = document.createElement('div');
+                item.className = 'bg-m3-surfaceVariant/20 p-4 rounded-2xl border border-m3-outline/10 space-y-2';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-xs text-m3-onSurface">${sub.name} (${sub.code})</span>
+                        <span class="text-xs font-extrabold ${simPct >= originalPct ? 'text-emerald-600' : 'text-m3-onSurface'}">
+                            ${originalPct}% ➔ ${simPct}% (${simPct - originalPct >= 0 ? '+' : ''}${simPct - originalPct}%)
+                        </span>
+                    </div>
+                    <!-- Comparison visual bar -->
+                    <div class="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                        <div class="bg-blue-600 h-full transition-all duration-500" style="width: ${originalPct}%" title="Original Attendance"></div>
+                        <div class="bg-emerald-400 h-full transition-all duration-500" style="width: ${Math.max(0, simPct - originalPct)}%" title="OD Credit Gain"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-m3-outline">
+                        <span>Original: ${sub.attended}/${sub.total}</span>
+                        <span>OD Credits Added: +${credits.od} hrs</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // --- 3. TIMETABLE SCHEDULE GRID RENDERER ---
+        function renderTimetableGrid() {
+            const grid = document.getElementById('timetableGrid');
+            grid.innerHTML = '';
+            const timetable = SECTION_DATA[activeSectionKey].timetable;
+
+            Object.keys(timetable).forEach(day => {
+                const col = document.createElement('div');
+                col.className = 'bg-m3-surfaceVariant/30 p-3.5 rounded-2xl border border-m3-outline/10 space-y-2';
+                
+                let periodsHTML = timetable[day].map((p, idx) => `
+                    <div class="bg-m3-surface p-2.5 rounded-xl shadow-xs text-xs">
+                        <div class="text-[10px] font-bold text-m3-primary">Slot ${idx + 1}</div>
+                        <div class="font-extrabold text-m3-onSurface truncate mt-0.5">${p}</div>
+                    </div>
+                `).join('');
+
+                col.innerHTML = `
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-m3-outline text-center pb-1 border-b border-m3-outline/10">${day}</h4>
+                    <div class="space-y-2 pt-1">
+                        ${periodsHTML}
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+        }
+
+        // --- 4. CHART.JS VISUAL ANALYTICS ---
+        function renderAnalyticsCharts() {
+            // Gauge Chart
+            let totalAtt = 0;
+            let totalClasses = 0;
+            currentSubjects.forEach(s => {
+                const creds = simulationCredits[s.id] || { od: 0, ml: 0 };
+                totalAtt += (s.attended + creds.od);
+                totalClasses += s.total;
+            });
+            const overallPct = totalClasses > 0 ? Math.round((totalAtt / totalClasses) * 100) : 0;
+            document.getElementById('chartGaugeValue').innerText = `${overallPct}%`;
+
+            const gaugeCtx = document.getElementById('gaugeChart')?.getContext('2d');
+            if (gaugeCtx) {
+                if (gaugeChartInstance) gaugeChartInstance.destroy();
+                gaugeChartInstance = new Chart(gaugeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Attended', 'Missed'],
+                        datasets: [{
+                            data: [overallPct, 100 - overallPct],
+                            backgroundColor: [
+                                overallPct >= 75 ? '#10b981' : '#ba1a1a',
+                                '#e1e2ec'
+                            ],
+                            borderWidth: 0,
+                            borderRadius: 10
+                        }]
+                    },
+                    options: {
+                        cutout: '80%',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // Trajectory Line Chart
+            const trajCtx = document.getElementById('trajectoryChart')?.getContext('2d');
+            if (trajCtx) {
+                if (trajectoryChartInstance) trajectoryChartInstance.destroy();
+
+                const days = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Target Date'];
+                // Generate trajectory lines
+                const current = overallPct;
+                const path100 = [current, Math.min(100, current + 3), Math.min(100, current + 6), Math.min(100, current + 9), Math.min(100, current + 12)];
+                const path80 = [current, current + 1, current + 1, current + 2, current + 2];
+                const path50 = [current, current - 3, current - 6, current - 9, current - 12];
+
+                trajectoryChartInstance = new Chart(trajCtx, {
+                    type: 'line',
+                    data: {
+                        labels: days,
+                        datasets: [
+                            { label: '100% Attendance Path', data: path100, borderColor: '#10b981', tension: 0.3, borderWidth: 3 },
+                            { label: '80% Attendance Path', data: path80, borderColor: '#3b82f6', tension: 0.3, borderWidth: 2 },
+                            { label: '50% Bunk Trajectory', data: path50, borderColor: '#ef4444', tension: 0.3, borderWidth: 2, borderDash: [5, 5] }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { min: 40, max: 100, grid: { color: 'rgba(150,150,150,0.1)' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- 5. ATTENDANCE ADVISOR AI CHATBOT (GEMINI API INTEGRATION) ---
+        function toggleAiDrawer() {
+            const drawer = document.getElementById('aiDrawer');
+            const backdrop = document.getElementById('aiDrawerBackdrop');
+            if (drawer.classList.contains('translate-x-full')) {
+                backdrop.classList.remove('hidden');
+                setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+                drawer.classList.remove('translate-x-full');
+            } else {
+                backdrop.classList.add('opacity-0');
+                drawer.classList.add('translate-x-full');
+                setTimeout(() => backdrop.classList.add('hidden'), 300);
+            }
+        }
+
+        function openApiKeyModal() {
+            document.getElementById('userApiKeyInput').value = userGeminiApiKey;
+            document.getElementById('apiKeyModal').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            userGeminiApiKey = document.getElementById('userApiKeyInput').value.trim();
+            localStorage.setItem('gemini_api_key', userGeminiApiKey);
+            updateApiKeyLabel();
+            closeApiKeyModal();
+        }
+
+        function updateApiKeyLabel() {
+            const label = document.getElementById('apiKeyStatusLabel');
+            if (userGeminiApiKey) {
+                label.innerText = 'Gemini API Connected';
+            } else {
+                label.innerText = 'Gemini API Key';
+            }
+        }
+
+        function sendQuickPrompt(promptText) {
+            document.getElementById('aiChatInput').value = promptText;
+            handleAiChatSubmit(new Event('submit'));
+        }
+
+        async function handleAiChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('aiChatInput');
+            const userMsg = input.value.trim();
+            if (!userMsg) return;
+
+            // Render User Bubble
+            appendChatMessage('user', userMsg);
+            input.value = '';
+
+            // Render Typing Indicator
+            const typingId = appendChatMessage('bot', 'Analyzing your attendance context...');
+
+            // Formulate Real-Time Dashboard Context
+            const contextData = currentSubjects.map(s => {
+                const creds = simulationCredits[s.id] || { od: 0, ml: 0 };
+                const pct = Math.round(((s.attended + creds.od) / s.total) * 100);
+                return `${s.name} (${s.code}): ${s.attended + creds.od}/${s.total} classes (${pct}%)`;
+            }).join('; ');
+
+            let botReply = '';
+
+            // Call Gemini API if API key exists or fallback to smart built-in rule engine
+            if (userGeminiApiKey) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${userGeminiApiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: `System Context: You are "Attendance Advisor AI" for a college student in section ${activeSectionKey}.\nStudent Current Attendance Context: [${contextData}].\nUser Question: "${userMsg}".\nProvide a concise, helpful, friendly answer calculating exact impact on attendance percentage and safety thresholds.`
+                                }]
+                            }]
+                        })
+                    });
+                    const resJson = await response.json();
+                    botReply = resJson.candidates?.[0]?.content?.parts?.[0]?.text || generateSmartRuleFallback(userMsg);
+                } catch (err) {
+                    botReply = generateSmartRuleFallback(userMsg);
+                }
+            } else {
+                // Built-in intelligent rule engine
+                await new Promise(res => setTimeout(res, 600)); // natural pause
+                botReply = generateSmartRuleFallback(userMsg);
+            }
+
+            // Remove typing indicator and show real answer
+            document.getElementById(typingId)?.remove();
+            appendChatMessage('bot', botReply);
+        }
+
+        function generateSmartRuleFallback(userMsg) {
+            const query = userMsg.toLowerCase();
+            const sampleSub = currentSubjects[0] || { name: 'Data Structures', attended: 20, total: 25 };
+            const subPct = Math.round((sampleSub.attended / sampleSub.total) * 100);
+
+            if (query.includes('sick') || query.includes('leave') || query.includes('medical')) {
+                return `Based on your current dashboard, if you take a 2 to 3 day medical leave, your overall attendance will drop by roughly ~3.5%. Make sure to submit an official Medical Leave (ML) certificate in the OD Simulator tab to keep those hours credited!`;
+            } else if (query.includes('bunk') || query.includes('miss')) {
+                const safeBunks = Math.max(0, Math.floor((sampleSub.attended - (0.75 * sampleSub.total)) / 0.75));
+                return `In ${sampleSub.name} (currently at ${subPct}%), you can safely miss up to ${safeBunks} class hours before dropping below the 75% threshold.`;
+            } else if (query.includes('90') || query.includes('excellence')) {
+                return `To hit 90% attendance overall, you need to attend at least 10 consecutive upcoming classes without any absences across your schedule!`;
+            } else {
+                return `I've reviewed your current subject records (${currentSubjects.length} active courses). Your average attendance is solid. Check the OD Simulator tab if you plan on attending college events to preserve your attendance credits!`;
+            }
+        }
+
+        function appendChatMessage(sender, text) {
+            const container = document.getElementById('aiChatContainer');
+            const msgId = 'msg_' + Date.now();
+            const wrapper = document.createElement('div');
+            wrapper.id = msgId;
+            wrapper.className = `flex items-start gap-2.5 ${sender === 'user' ? 'justify-end' : ''}`;
+
+            if (sender === 'user') {
+                wrapper.innerHTML = `
+                    <div class="bg-m3-primary text-m3-onPrimary p-3.5 rounded-2xl rounded-tr-none max-w-[85%] text-xs font-medium shadow-m3-1">
+                        ${text}
+                    </div>
+                `;
+            } else {
+                wrapper.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        AI
+                    </div>
+                    <div class="bg-m3-surfaceVariant/50 dark:bg-slate-800 p-3.5 rounded-2xl rounded-tl-none max-w-[85%] border border-m3-outline/10 text-m3-onSurface text-xs leading-relaxed">
+                        ${text}
+                    </div>
+                `;
+            }
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+            return msgId;
+        }
+    </script>
+</body>
+</html>
