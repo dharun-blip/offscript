@@ -69,6 +69,35 @@ export interface SubjectResult {
   irreversible: boolean; // cannot clear floor before planning date
 }
 
+export type LeaveKind = "od" | "medical";
+export interface LeavePlan { kind: LeaveKind; start: string; days: number }
+
+/** Scheduled classes are distributed over weekdays; excused classes leave the denominator. */
+export function excusedClasses(from: Date, to: Date, perWeek: number, leave: LeavePlan | null): number {
+  if (!leave || !leave.start || leave.days < 1) return 0;
+  const start = new Date(`${leave.start}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return 0;
+  let count = 0;
+  for (let i = 0; i < Math.min(leave.days, 90); i++) {
+    const day = new Date(start);
+    day.setDate(day.getDate() + i);
+    const weekday = (day.getDay() + 6) % 7;
+    if (day >= from && day < to && weekday < Math.min(5, perWeek)) count++;
+  }
+  return count;
+}
+
+export function simulateLeave(result: SubjectResult, excused: number) {
+  const effective = Math.min(result.remaining, Math.max(0, excused));
+  const projectedTotal = result.held + result.remaining - effective;
+  const projectedPct = projectedTotal ? (result.attended + result.remaining - effective) / projectedTotal * 100 : 0;
+  const needed = (threshold: number) => {
+    const required = Math.max(0, Math.ceil(threshold * projectedTotal - result.attended - 1e-9));
+    return required <= result.remaining - effective ? required : null;
+  };
+  return { excused: effective, projectedPct, neededForFloor: needed(DANGER_FLOOR), neededForTarget: needed(TARGET) };
+}
+
 export function analyze(
   subject: SubjectDef,
   pct: number,
